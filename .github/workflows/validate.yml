@@ -70,17 +70,17 @@ jobs:
         run: sudo apt-get install -y shellcheck
 
       - name: tofu fmt check
-        working-directory: environments/homelab
+        working-directory: environments/lab
         run: tofu fmt -check -recursive ../../
 
       - name: tofu init
-        working-directory: environments/homelab
+        working-directory: environments/lab
         run: tofu init -backend=false
         env:
           TF_CLI_ARGS_init: "-upgrade=false"
 
       - name: tofu validate
-        working-directory: environments/homelab
+        working-directory: environments/lab
         run: tofu validate
         env:
           TF_VAR_primary_host: "127.0.0.1"
@@ -121,7 +121,7 @@ jobs:
         run: go mod tidy
 
       - name: tofu init
-        working-directory: environments/homelab
+        working-directory: environments/lab
         run: tofu init -backend=false
         env:
           TF_CLI_ARGS_init: "-upgrade=false"
@@ -191,7 +191,7 @@ jobs:
           ssh -i ~/.ssh/test_key -o StrictHostKeyChecking=no 127.0.0.1 echo "SSH OK"
 
       - name: Decrypt tfvars (if SOPS_AGE_KEY is set)
-        working-directory: environments/homelab
+        working-directory: environments/lab
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
         run: |
@@ -205,7 +205,7 @@ jobs:
           fi
 
       - name: Write test tfvars
-        working-directory: environments/homelab
+        working-directory: environments/lab
         run: |
           [[ -f terraform.tfvars ]] && { echo "Using decrypted tfvars"; exit 0; }
           cat > terraform.tfvars <<EOF
@@ -245,7 +245,7 @@ jobs:
           EOF
 
       - name: tofu init + apply
-        working-directory: environments/homelab
+        working-directory: environments/lab
         run: |
           tofu init -backend=false
           tofu apply -auto-approve

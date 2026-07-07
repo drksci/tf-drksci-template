@@ -20,7 +20,7 @@ always_keep_install = false
 [env]
 # Resolve environment config relative to this file
 HOMELAB_ROOT  = "{{config_root}}"
-TF_DIR        = "{{config_root}}/environments/homelab"
+TF_DIR        = "{{config_root}}/environments/lab"
 SCRIPTS_DIR   = "{{config_root}}/scripts"
 KUBECONFIG    = "{{config_root}}/.kube/homelab.yaml"
 # Dagger runner — set after `deploy` so CI clients can source this
@@ -44,7 +44,7 @@ run = "mise run install"
 
 [tasks.init]
 description = "Initialise OpenTofu (run once after clone)"
-dir = "{{config_root}}/environments/homelab"
+dir = "{{config_root}}/environments/lab"
 run = "tofu init -upgrade"
 
 [tasks.validate]
@@ -119,7 +119,7 @@ echo "Watch at: gh run list --workflow=validate.yml"
 
 [tasks.plan]
 description = "Preview changes without applying"
-dir = "{{config_root}}/environments/homelab"
+dir = "{{config_root}}/environments/lab"
 run = "tofu plan"
 
 [tasks.deploy]
@@ -132,7 +132,7 @@ run = "bash {{config_root}}/scripts/destroy.sh"
 
 [tasks.output]
 description = "Print all Terraform outputs"
-dir = "{{config_root}}/environments/homelab"
+dir = "{{config_root}}/environments/lab"
 run = "tofu output"
 
 # ---------------------------------------------------------------------------
@@ -433,7 +433,7 @@ run = "bash {{config_root}}/scripts/secrets-init.sh"
 
 [tasks.secrets-encrypt]
 description = "Encrypt terraform.tfvars → terraform.tfvars.enc (commit the .enc file)"
-dir = "{{config_root}}/environments/homelab"
+dir = "{{config_root}}/environments/lab"
 run = """
 if [[ ! -f terraform.tfvars ]]; then
   echo "No terraform.tfvars found — copy from terraform.tfvars.example first"
@@ -445,7 +445,7 @@ echo "Encrypted → terraform.tfvars.enc (commit this file)"
 
 [tasks.secrets-decrypt]
 description = "Decrypt terraform.tfvars.enc → terraform.tfvars (run after clone)"
-dir = "{{config_root}}/environments/homelab"
+dir = "{{config_root}}/environments/lab"
 run = """
 if [[ ! -f terraform.tfvars.enc ]]; then
   echo "No terraform.tfvars.enc found — run 'mise run secrets-encrypt' first"

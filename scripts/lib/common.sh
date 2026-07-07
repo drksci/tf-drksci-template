@@ -89,7 +89,7 @@ ssh_exec() {
 # OpenTofu helpers
 # ---------------------------------------------------------------------------
 
-TF_DIR="${TF_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/environments/homelab}"
+TF_DIR="${TF_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/environments/lab}"
 
 tofu_output() {
   local key="$1"
