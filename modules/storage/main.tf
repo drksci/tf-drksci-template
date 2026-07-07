@@ -59,7 +59,7 @@ resource "null_resource" "minio" {
     host         = var.host
     minio_host   = var.minio_hostname
     console_host = var.minio_console_hostname
-    storage_size = var.minio_storage_size
+    data_path    = var.minio_data_path
     root_user    = var.minio_root_user
   }
 

@@ -6,7 +6,8 @@
 # Tags must be pre-created in Tailscale admin before first apply.
 
 locals {
-  tailscale_enabled = var.tailscale_api_key != "" && var.tailscale_tailnet != ""
+  # ACL management requires both api_key and tailnet; operator only needs auth_key
+  tailscale_acl_enabled = var.tailscale_api_key != "" && var.tailscale_tailnet != ""
 
   # Services reachable by hosts (admin layer)
   host_services = [
@@ -28,7 +29,7 @@ locals {
 }
 
 resource "tailscale_acl" "homelab" {
-  count = local.tailscale_enabled ? 1 : 0
+  count = local.tailscale_acl_enabled ? 1 : 0
 
   acl = jsonencode({
     tagOwners = {

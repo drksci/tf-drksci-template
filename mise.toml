@@ -466,3 +466,139 @@ uv run pytest -m e2e -v --timeout=300
 [tasks.help]
 description = "List all available tasks"
 run = "mise tasks"
+
+# ---------------------------------------------------------------------------
+# Node management — add / remove / migrate
+# ---------------------------------------------------------------------------
+
+[tasks.node-add]
+description = "Add a worker node to the cluster — usage: HOST=x USER=y OS=linux|macos mise run node-add"
+run = """
+: "${HOST:?Usage: HOST=<hostname> USER=<user> OS=linux|macos mise run node-add}"
+: "${USER:?Usage: HOST=<hostname> USER=<user> OS=linux|macos mise run node-add}"
+OS="${OS:-linux}"
+KEY="${KEY:-~/.ssh/id_ed25519}"
+
+echo "Adding node: ${USER}@${HOST} (os=${OS}, key=${KEY})"
+
+# Verify SSH connectivity before touching tfvars
+ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 -i "${KEY/#\~/$HOME}" "${USER}@${HOST}" true \
+  || { echo "ERROR: Cannot SSH to ${USER}@${HOST} — check host, user, and key"; exit 1; }
+
+# Derive a safe map key from hostname (strip .local, replace . and - with _)
+SLUG=$(echo "${HOST}" | sed 's/\\.local$//' | tr '.-' '_')
+
+TFVARS="${TF_DIR}/terraform.tfvars"
+# Inject node into worker_nodes block (idempotent — skip if slug already present)
+if grep -q "\"${SLUG}\"" "${TFVARS}" 2>/dev/null; then
+  echo "Node '${SLUG}' already present in terraform.tfvars — nothing to do"
+else
+  # Replace closing brace of worker_nodes block with the new entry + brace
+  python3 - <<PYEOF
+import re, pathlib
+path = pathlib.Path("${TFVARS}")
+text = path.read_text()
+entry = '''  ${SLUG} = {
+    host             = "${HOST}"
+    user             = "${USER}"
+    private_key_path = "${KEY}"
+    os               = "${OS}"
+  }'''
+# Insert before the closing } of the worker_nodes block
+text = re.sub(r'(worker_nodes\s*=\s*\{)([^}]*?)(\})', r'\\1\\2' + entry + r'\\n\\3', text, count=1, flags=re.DOTALL)
+path.write_text(text)
+PYEOF
+  echo "Added '${SLUG}' to terraform.tfvars"
+fi
+
+echo "Running tofu apply to join node..."
+tofu -chdir="${TF_DIR}" apply -auto-approve \
+  -target="module.bootstrap_workers[\\\"${SLUG}\\\"]" \
+  -target="module.runtime_workers[\\\"${SLUG}\\\"]"
+
+echo "Node ${HOST} joined. Verify: mise run status"
+"""
+
+[tasks.node-remove]
+description = "Drain and remove a worker node — usage: SLUG=imac2 mise run node-remove"
+run = """
+: "${SLUG:?Usage: SLUG=<worker_map_key> mise run node-remove  (key from worker_nodes in tfvars)}"
+
+TFVARS="${TF_DIR}/terraform.tfvars"
+
+# Get the actual hostname for the slug so we can drain it
+HOST=$(grep -A5 "\"${SLUG}\"" "${TFVARS}" | grep 'host' | awk -F'"' '{print $2}' | head -1)
+if [[ -z "$HOST" ]]; then
+  echo "ERROR: slug '${SLUG}' not found in worker_nodes in ${TFVARS}"
+  exit 1
+fi
+
+echo "Draining node ${HOST} (slug=${SLUG})..."
+NODE=$(kubectl --kubeconfig "$KUBECONFIG" get nodes -o name | grep "${HOST%%.*}" | head -1)
+if [[ -n "$NODE" ]]; then
+  kubectl --kubeconfig "$KUBECONFIG" cordon "${NODE}"
+  kubectl --kubeconfig "$KUBECONFIG" drain "${NODE}" \
+    --ignore-daemonsets --delete-emptydir-data --force --grace-period=30 --timeout=120s || true
+  kubectl --kubeconfig "$KUBECONFIG" delete "${NODE}" 2>/dev/null || true
+fi
+
+echo "Removing '${SLUG}' from terraform.tfvars..."
+python3 - <<PYEOF
+import re, pathlib
+path = pathlib.Path("${TFVARS}")
+text = path.read_text()
+# Remove the named block inside worker_nodes
+text = re.sub(r'[ \\t]*${SLUG}\\s*=\\s*\\{[^}]*\\}\\s*\\n?', '', text)
+path.write_text(text)
+PYEOF
+
+echo "Running tofu apply to remove node from state..."
+tofu -chdir="${TF_DIR}" apply -auto-approve
+
+echo "Node ${HOST} removed. Remaining nodes: mise run status"
+"""
+
+[tasks.node-migrate]
+description = "Migrate workloads from one node to another — usage: FROM=node1 TO=node2 mise run node-migrate"
+run = """
+: "${FROM:?Usage: FROM=<node-name> TO=<node-name> mise run node-migrate}"
+: "${TO:?Usage: FROM=<node-name> TO=<node-name> mise run node-migrate}"
+
+echo "=== Migrate: ${FROM} → ${TO} ==="
+
+# Verify destination exists
+kubectl --kubeconfig "$KUBECONFIG" get node "${TO}" &>/dev/null \
+  || { echo "ERROR: destination node '${TO}' not found in cluster"; exit 1; }
+
+echo "Step 1: Cordon source node ${FROM}..."
+kubectl --kubeconfig "$KUBECONFIG" cordon "${FROM}"
+
+echo "Step 2: Drain source node (ignoring daemonsets)..."
+kubectl --kubeconfig "$KUBECONFIG" drain "${FROM}" \
+  --ignore-daemonsets --delete-emptydir-data --force --grace-period=60 --timeout=300s
+
+echo "Step 3: Taint ${FROM} so no pods reschedule there..."
+kubectl --kubeconfig "$KUBECONFIG" taint node "${FROM}" \
+  migration=draining:NoSchedule --overwrite 2>/dev/null || true
+
+echo "Step 4: Waiting for pods to settle on ${TO}..."
+sleep 10
+kubectl --kubeconfig "$KUBECONFIG" get pods -A -o wide | grep "${TO}"
+
+echo ""
+echo "Migration complete. Pods are now on ${TO}."
+echo "To remove ${FROM} from the cluster: SLUG=<slug> mise run node-remove"
+echo "To re-enable ${FROM}: kubectl uncordon ${FROM}"
+"""
+
+[tasks.node-list]
+description = "List all cluster nodes with status and roles"
+run = """
+echo "=== Cluster nodes ==="
+kubectl --kubeconfig "$KUBECONFIG" get nodes -o wide
+echo ""
+echo "=== Pod distribution ==="
+kubectl --kubeconfig "$KUBECONFIG" get pods -A -o wide \
+  | awk 'NR==1{print} NR>1{print | "sort -k8"}' \
+  | grep -v Completed
+"""

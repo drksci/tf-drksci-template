@@ -30,13 +30,17 @@ terraform {
   }
 }
 
-# Cloudflare provider — only configured when cloudflare_api_token is set
+# Cloudflare provider — only configured when cloudflare_api_token is set.
+# Placeholder token satisfies format validation (40 alphanumeric chars) but
+# all CF resources are guarded by count = local.cf_enabled so it never fires.
 provider "cloudflare" {
-  api_token = var.cloudflare_api_token != "" ? var.cloudflare_api_token : "placeholder"
+  api_token = var.cloudflare_api_token != "" ? var.cloudflare_api_token : "00000000000000000000000000000000000000CF"
 }
 
-# Tailscale provider — only configured when tailscale_api_key is set
+# Tailscale provider — only configured when tailscale_api_key + tailscale_tailnet are set.
+# Resources are guarded by local.tailscale_acl_enabled so the provider is never
+# invoked when disabled; the placeholder values satisfy schema validation only.
 provider "tailscale" {
-  api_key = var.tailscale_api_key != "" ? var.tailscale_api_key : "placeholder"
-  tailnet = var.tailscale_tailnet
+  api_key = var.tailscale_api_key != "" ? var.tailscale_api_key : "tskey-api-placeholder"
+  tailnet = var.tailscale_tailnet != "" ? var.tailscale_tailnet : "placeholder.ts.net"
 }

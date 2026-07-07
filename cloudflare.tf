@@ -15,8 +15,11 @@ resource "cloudflare_zero_trust_tunnel_cloudflared" "homelab" {
 }
 
 # One CNAME per public service → tunnel.cfargotunnel.com (proxied through Cloudflare)
+# nonsensitive() is required because local.public_services is tainted by cf_enabled,
+# which is derived from the sensitive cloudflare_api_token variable. The keys
+# (service slugs / public hostnames) are not themselves sensitive.
 resource "cloudflare_record" "public_services" {
-  for_each = local.public_services
+  for_each = nonsensitive(local.public_services)
   zone_id  = var.cloudflare_zone_id
   name     = split(".", each.value.public_hostname)[0]
   type     = "CNAME"

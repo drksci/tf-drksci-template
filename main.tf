@@ -311,7 +311,7 @@ module "storage" {
   minio_console_hostname = var.minio_console_hostname
   minio_root_user        = var.minio_root_user
   minio_root_password    = var.minio_root_password
-  minio_storage_size     = var.minio_storage_size
+  dockge_stacks_dir      = var.dockge_stacks_dir
   longhorn_hostname      = var.longhorn_hostname
   longhorn_replica_count = var.longhorn_replica_count
 }
