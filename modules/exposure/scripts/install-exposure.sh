@@ -144,11 +144,15 @@ if [[ -n "${TAILSCALE_AUTH_KEY}" ]]; then
   helm repo add tailscale https://pkgs.tailscale.com/helmcharts 2>/dev/null || true
   helm repo update tailscale
 
+  # TS_OPERATOR_HOSTNAME is the tailnet name for the operator node itself.
+  # apiServerProxyConfig.mode=auth exposes the k8s API on the tailnet —
+  # kubectl from any tailnet device works via MagicDNS, no kubeconfig rewriting needed.
   helm upgrade --install tailscale-operator tailscale/tailscale-operator \
     --namespace tailscale \
     --wait \
     --timeout 3m \
-    --set operatorConfig.hostname="homelab-operator" \
+    --set operatorConfig.hostname="${TS_OPERATOR_HOSTNAME:-home-operator}" \
+    --set apiServerProxyConfig.mode=auth \
     --set oauth.clientId="" \
     --set oauth.clientSecret="" \
     --set-string extraEnv[0].name=TS_AUTHKEY \

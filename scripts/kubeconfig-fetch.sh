@@ -31,25 +31,34 @@ if [[ -f "${TFVARS}" ]]; then
   [[ -n "${p}" ]] && PRIMARY_PORT="${p}"
 fi
 
-SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -p "${PRIMARY_PORT}")
-[[ -f "${PRIMARY_KEY}" ]] && SSH_OPTS+=(-i "${PRIMARY_KEY}")
-
-info "Fetching ${KUBECONF_REMOTE} from ${PRIMARY_USER}@${PRIMARY_HOST}…"
-
 LOCAL_KUBECONFIG="${HOMELAB_ROOT}/.kube/homelab.yaml"
 mkdir -p "$(dirname "${LOCAL_KUBECONFIG}")"
 
-# Pull kubeconfig; rewrite server address to use actual host (not 127.0.0.1)
-ssh "${SSH_OPTS[@]}" "${PRIMARY_USER}@${PRIMARY_HOST}" "sudo cat '${KUBECONF_REMOTE}'" \
-  | sed "s|server: https://127.0.0.1:|server: https://${PRIMARY_HOST}:|" \
-  | sed "s|server: https://localhost:|server: https://${PRIMARY_HOST}:|" \
-  > "${LOCAL_KUBECONFIG}"
+if [[ "${USE_TAILSCALE:-}" == "1" ]]; then
+  # Tailscale mode: API server is proxied by the operator onto the tailnet.
+  # kubectl authenticates via Tailscale identity — no SSH key needed.
+  # Requires: tailscale-operator deployed with apiServerProxyConfig.mode=auth.
+  TS_NODE="${TS_OPERATOR_HOSTNAME:-home-imac-01}"
+  info "Fetching kubeconfig via Tailscale SSH (${TS_NODE})…"
+  ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+    "${PRIMARY_USER}@${TS_NODE}" "sudo cat '${KUBECONF_REMOTE}'" \
+    | sed "s|server: https://[^:]*:|server: https://${TS_NODE}:|" \
+    > "${LOCAL_KUBECONFIG}"
+else
+  SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -p "${PRIMARY_PORT}")
+  [[ -f "${PRIMARY_KEY}" ]] && SSH_OPTS+=(-i "${PRIMARY_KEY}")
+  info "Fetching ${KUBECONF_REMOTE} from ${PRIMARY_USER}@${PRIMARY_HOST}…"
+  ssh "${SSH_OPTS[@]}" "${PRIMARY_USER}@${PRIMARY_HOST}" "sudo cat '${KUBECONF_REMOTE}'" \
+    | sed "s|server: https://127.0.0.1:|server: https://${PRIMARY_HOST}:|" \
+    | sed "s|server: https://localhost:|server: https://${PRIMARY_HOST}:|" \
+    > "${LOCAL_KUBECONFIG}"
+fi
+
 chmod 600 "${LOCAL_KUBECONFIG}"
 
 success "Saved to ${LOCAL_KUBECONFIG}"
 info "Active (via KUBECONFIG env): kubectl get nodes"
 
-# Test it
 echo ""
 KUBECONFIG="${LOCAL_KUBECONFIG}" kubectl get nodes 2>/dev/null && success "Cluster reachable" \
   || warn "Cluster not yet reachable — API server may still be starting."

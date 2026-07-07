@@ -140,8 +140,26 @@ run = "tofu output"
 # ---------------------------------------------------------------------------
 
 [tasks.kubeconfig]
-description = "Fetch kubeconfig from primary node → .kube/homelab.yaml"
+description = "Fetch kubeconfig from primary node → .kube/homelab.yaml (uses SSH key)"
 run = "bash {{config_root}}/scripts/kubeconfig-fetch.sh"
+
+[tasks.kubeconfig-tailscale]
+description = "Fetch kubeconfig via Tailscale SSH — no key needed, identity from tailnet"
+run = "USE_TAILSCALE=1 bash {{config_root}}/scripts/kubeconfig-fetch.sh"
+
+[tasks.expose]
+description = "Expose a k8s Service on the tailnet — usage: SVC=myapp NS=myns mise run expose"
+run = """
+: "${SVC:?Usage: SVC=myapp NS=myns mise run expose}"
+: "${NS:?Usage: SVC=myapp NS=myns mise run expose}"
+PORT=$(kubectl get svc -n \"$NS\" \"$SVC\" -o jsonpath='{.spec.ports[0].port}' 2>/dev/null)
+[[ -n "$PORT" ]] || { echo "Service $SVC not found in namespace $NS"; exit 1; }
+kubectl patch svc \"$SVC\" -n \"$NS\" \
+  --type=merge \
+  -p '{"spec":{"type":"LoadBalancer","loadBalancerClass":"tailscale"}}'
+echo "→ $SVC.$NS will appear on your tailnet as: $SVC"
+echo "  Check: kubectl get svc -n $NS $SVC -w"
+"""
 
 [tasks.kubectl]
 description = "kubectl wrapper using the homelab kubeconfig"
