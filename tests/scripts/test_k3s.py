@@ -11,7 +11,7 @@ from testcontainers.core.waiting_utils import wait_for_logs
 from conftest import SCRIPTS_ROOT, UBUNTU_IMAGE, copy_scripts_to, run_in, host_for
 
 
-K3S_SCRIPT = SCRIPTS_ROOT / "runtime" / "scripts" / "install-k3s.sh"
+K3S_SCRIPT = SCRIPTS_ROOT / "runtime" / "scripts" / "install-k3s-server.sh"
 
 
 @pytest.fixture(scope="module")

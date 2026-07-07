@@ -13,6 +13,9 @@ dependencies = [
   "pytest-xdist>=3.5",   # parallel test execution
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = []
+
 [tool.pytest.ini_options]
 addopts = "-v --tb=short -p no:cacheprovider"
 markers = [

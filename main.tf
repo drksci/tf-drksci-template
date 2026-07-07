@@ -177,6 +177,7 @@ module "exposure" {
   os               = var.primary_node.os
   ssh_timeout      = var.ssh_timeout
 
+  enabled               = local.cf_enabled || local.tailscale_enabled
   kubeconfig_path       = local.kubeconfig_remote_path[var.runtime]
   cf_tunnel_token       = local.cf_enabled ? cloudflare_zero_trust_tunnel_cloudflared.homelab[0].tunnel_token : ""
   tailscale_auth_key    = var.tailscale_auth_key

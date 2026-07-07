@@ -33,20 +33,27 @@ func repoRoot(t *testing.T) string {
 }
 
 func tfDir(t *testing.T) string {
-	return filepath.Join(repoRoot(t), "environments", "homelab")
+	return filepath.Join(repoRoot(t), "environments", "lab")
 }
 
 // baseVars is the minimal set of variables needed for validate/plan.
+// These override terraform.tfvars so tests are hermetic and match the
+// variable defaults (not the operator's local deployment config).
 func baseVars() map[string]interface{} {
 	return map[string]interface{}{
 		"primary_host":        "127.0.0.1",
 		"primary_user":        "runner",
 		"minio_root_password": "test-only",
+		// Explicit runtime so tests don't pick up colima from local terraform.tfvars
+		"runtime": "k3s",
 		// Disable cloud integrations — no API tokens in unit tests
 		"cloudflare_api_token": "",
 		"tailscale_auth_key":   "",
 		"gdrive_rclone_token":  "",
 		"github_token":         "",
+		// Override local tfvars defaults for hermeticity
+		"enable_backup": false,
+		"enable_velero": true,
 	}
 }
 
@@ -74,8 +81,6 @@ func TestValidate(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPlanDefaultConfig(t *testing.T) {
-	t.Parallel()
-
 	opts := &terraform.Options{
 		TerraformDir:    tfDir(t),
 		TerraformBinary: "tofu",
@@ -89,14 +94,12 @@ func TestPlanDefaultConfig(t *testing.T) {
 	// Core resources must be planned
 	assert.NotEmpty(t, plan.ResourceChangesMap, "plan should contain resources")
 
-	// k3s join token must be planned (random_password)
-	_, hasToken := plan.ResourceChangesMap["random_password.k3s_token[0]"]
+	// k3s join token must be planned (random_password, namespaced under root module)
+	_, hasToken := plan.ResourceChangesMap["module.homelab_cicd.random_password.k3s_token[0]"]
 	assert.True(t, hasToken, "k3s join token resource should be in plan")
 }
 
 func TestPlanCloudflareDisabledByDefault(t *testing.T) {
-	t.Parallel()
-
 	opts := &terraform.Options{
 		TerraformDir:    tfDir(t),
 		TerraformBinary: "tofu",
@@ -108,15 +111,14 @@ func TestPlanCloudflareDisabledByDefault(t *testing.T) {
 	plan := terraform.InitAndPlanAndShowWithStruct(t, opts)
 
 	// Cloudflare tunnel must NOT be in plan when api_token is empty
-	_, hasCFTunnel := plan.ResourceChangesMap["cloudflare_zero_trust_tunnel_cloudflared.homelab[0]"]
+	_, hasCFTunnel := plan.ResourceChangesMap["module.homelab_cicd.cloudflare_zero_trust_tunnel_cloudflared.homelab[0]"]
 	assert.False(t, hasCFTunnel, "CF tunnel should not be planned when api_token is empty")
 }
 
 func TestPlanCloudflareEnabled(t *testing.T) {
-	t.Parallel()
-
 	vars := baseVars()
-	vars["cloudflare_api_token"] = "test-token"
+	// CF provider validates token: must be alphanumeric/hyphens/underscores, ≥40 chars
+	vars["cloudflare_api_token"] = "test-only-token-aaaaabbbbbccccc11111222223333344444"
 	vars["cloudflare_account_id"] = "test-account"
 	vars["cloudflare_zone_id"] = "test-zone"
 	vars["cloudflare_domain"] = "example.com"
@@ -132,13 +134,11 @@ func TestPlanCloudflareEnabled(t *testing.T) {
 	plan := terraform.InitAndPlanAndShowWithStruct(t, opts)
 
 	// CF tunnel must appear in plan when all CF vars are set
-	_, hasCFTunnel := plan.ResourceChangesMap["cloudflare_zero_trust_tunnel_cloudflared.homelab[0]"]
+	_, hasCFTunnel := plan.ResourceChangesMap["module.homelab_cicd.cloudflare_zero_trust_tunnel_cloudflared.homelab[0]"]
 	assert.True(t, hasCFTunnel, "CF tunnel should be planned when api_token + account + zone are set")
 }
 
 func TestPlanBackupDisabledByDefault(t *testing.T) {
-	t.Parallel()
-
 	opts := &terraform.Options{
 		TerraformDir:    tfDir(t),
 		TerraformBinary: "tofu",

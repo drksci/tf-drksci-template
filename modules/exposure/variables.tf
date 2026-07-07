@@ -23,6 +23,12 @@ variable "ssh_timeout" {
 }
 variable "kubeconfig_path" { type = string }
 
+variable "enabled" {
+  description = "Whether to deploy the exposure module. Must be deterministic at plan time (no resource outputs)."
+  type        = bool
+  default     = false
+}
+
 variable "cf_tunnel_token" {
   type      = string
   default   = ""

@@ -1,7 +1,7 @@
 locals {
   conn_key = var.private_key_path != "" ? file(pathexpand(var.private_key_path)) : null
   conn_pwd = var.password != "" ? var.password : null
-  enabled  = var.cf_tunnel_token != "" || var.tailscale_auth_key != ""
+  enabled  = var.enabled
 }
 
 resource "null_resource" "exposure" {
