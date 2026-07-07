@@ -579,3 +579,22 @@ variable "ssh_timeout" {
   type        = string
   default     = "5m"
 }
+
+variable "tailscale_api_key" {
+  description = "Tailscale API key for managing ACLs (tailscale.com/settings/keys — API access)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "tailscale_tailnet" {
+  description = "Tailnet name (e.g. blake@github or your org slug from tailscale.com/admin)"
+  type        = string
+  default     = ""
+}
+
+variable "internal_domain" {
+  description = "Internal DNS zone served by dnsmasq (*.drksci.local)"
+  type        = string
+  default     = "drksci.local"
+}

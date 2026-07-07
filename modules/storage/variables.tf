@@ -60,10 +60,16 @@ variable "minio_root_password" {
   sensitive   = true
 }
 
-variable "minio_storage_size" {
-  description = "PVC size for MinIO object data"
+variable "minio_data_path" {
+  description = "Host path where MinIO stores object data (Docker volume)"
   type        = string
-  default     = "100Gi"
+  default     = "/opt/minio/data"
+}
+
+variable "dockge_stacks_dir" {
+  description = "Dockge stacks directory — MinIO Compose stack is written here"
+  type        = string
+  default     = "/opt/stacks"
 }
 
 # ---------------------------------------------------------------------------

@@ -186,6 +186,29 @@ module "exposure" {
 }
 
 # ---------------------------------------------------------------------------
+# DNS — dnsmasq Compose stack: resolves *.drksci.local across the LAN
+# Enabled when traefik_lb_ip is set; disabled until you know the LB IP.
+# ---------------------------------------------------------------------------
+
+module "dns" {
+  count      = var.traefik_lb_ip != "" ? 1 : 0
+  source     = "./modules/dns"
+  depends_on = [module.exposure]
+
+  host             = var.primary_node.host
+  user             = var.primary_node.user
+  port             = var.primary_node.port
+  private_key_path = var.primary_node.private_key_path
+  password         = var.primary_node.password
+  os               = var.primary_node.os
+  ssh_timeout      = var.ssh_timeout
+
+  traefik_lb_ip = var.traefik_lb_ip
+  domain        = var.internal_domain
+  stacks_dir    = var.dockge_stacks_dir
+}
+
+# ---------------------------------------------------------------------------
 # Backup — Velero + rclone → Google Drive
 # ---------------------------------------------------------------------------
 

@@ -98,6 +98,9 @@ module "homelab_cicd" {
   cloudflare_zone_id    = var.cloudflare_zone_id
   cloudflare_domain     = var.cloudflare_domain
   tailscale_auth_key    = var.tailscale_auth_key
+  tailscale_api_key     = var.tailscale_api_key
+  tailscale_tailnet     = var.tailscale_tailnet
+  internal_domain       = var.internal_domain
   argocd_exposure       = var.argocd_exposure
   kite_exposure         = var.kite_exposure
   homepage_exposure     = var.homepage_exposure

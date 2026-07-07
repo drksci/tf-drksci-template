@@ -373,3 +373,19 @@ variable "botkube_channel" {
   type    = string
   default = "homelab"
 }
+
+variable "tailscale_api_key" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "tailscale_tailnet" {
+  type    = string
+  default = ""
+}
+
+variable "internal_domain" {
+  type    = string
+  default = "drksci.local"
+}

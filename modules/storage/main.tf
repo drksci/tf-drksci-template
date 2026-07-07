@@ -87,7 +87,8 @@ resource "null_resource" "minio" {
         "CONSOLE_HOST='${var.minio_console_hostname}'",
         "ROOT_USER='${var.minio_root_user}'",
         "ROOT_PASSWORD='${var.minio_root_password}'",
-        "STORAGE_SIZE='${var.minio_storage_size}'",
+        "MINIO_DATA_PATH='${var.minio_data_path}'",
+        "STACKS_DIR='${var.dockge_stacks_dir}'",
         var.os == "macos" ? "/tmp/install-minio.sh" : "sudo -E /tmp/install-minio.sh",
       ]),
     ]
