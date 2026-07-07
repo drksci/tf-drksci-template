@@ -39,13 +39,13 @@ variable "enable_minio" {
 variable "minio_hostname" {
   description = "Hostname for MinIO S3 API endpoint"
   type        = string
-  default     = "s3.homelab.local"
+  default     = "s3.drksci.local"
 }
 
 variable "minio_console_hostname" {
   description = "Hostname for MinIO web console"
   type        = string
-  default     = "minio.homelab.local"
+  default     = "minio.drksci.local"
 }
 
 variable "minio_root_user" {
@@ -79,7 +79,7 @@ variable "enable_longhorn" {
 variable "longhorn_hostname" {
   description = "Hostname for Longhorn dashboard"
   type        = string
-  default     = "longhorn.homelab.local"
+  default     = "longhorn.drksci.local"
 }
 
 variable "longhorn_replica_count" {

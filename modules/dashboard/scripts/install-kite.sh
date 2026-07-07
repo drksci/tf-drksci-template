@@ -5,7 +5,7 @@
 set -euo pipefail
 
 : "${KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
-: "${KITE_HOST:=kite.homelab.local}"
+: "${KITE_HOST:=kite.drksci.local}"
 : "${SABLIER:=true}"
 : "${SESSION_DURATION:=30m}"
 : "${KITE_NAMESPACE:=kube-system}"

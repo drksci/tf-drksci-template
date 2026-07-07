@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Deploy MinIO — S3-compatible object storage with web console.
 # Single-node mode (homelab). Uses Longhorn PVC if available, else local-path.
-# S3 API: http://s3.homelab.local  Console: http://minio.homelab.local
+# S3 API: http://s3.drksci.local  Console: http://minio.drksci.local
 # https://min.io/
 set -euo pipefail
 
 : "${KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
-: "${MINIO_HOST:=s3.homelab.local}"
-: "${CONSOLE_HOST:=minio.homelab.local}"
+: "${MINIO_HOST:=s3.drksci.local}"
+: "${CONSOLE_HOST:=minio.drksci.local}"
 : "${ROOT_USER:=admin}"
 : "${ROOT_PASSWORD:?ROOT_PASSWORD is required (min 8 chars)}"
 : "${STORAGE_SIZE:=100Gi}"

@@ -49,7 +49,7 @@ dagger_version          = ""
 enable_docuum           = true
 docuum_threshold        = "7 days"
 enable_registry         = true
-registry_hostname       = "registry.homelab.local"
+registry_hostname       = "registry.drksci.local"
 registry_storage_size   = "80Gi"
 registry_retention_days = 30
 enable_gvisor           = true
@@ -58,35 +58,35 @@ enable_kata             = false
 enable_dashboard           = true
 enable_dockge              = true
 enable_kite                = true
-dockge_hostname            = "dockge.homelab.local"
-kite_hostname              = "kite.homelab.local"
+dockge_hostname            = "dockge.drksci.local"
+kite_hostname              = "kite.drksci.local"
 dockge_stacks_dir          = "/opt/stacks"
 dashboard_session_duration = "30m"
 
 enable_argocd   = true
-argocd_hostname = "argocd.homelab.local"
+argocd_hostname = "argocd.drksci.local"
 argocd_exposure = "internal"   # internal | tailnet | public
 
 enable_homepage   = true
-homepage_hostname = "home.homelab.local"
+homepage_hostname = "home.drksci.local"
 homepage_exposure = "internal"
 
 enable_storage         = true
 enable_longhorn        = true
 enable_minio           = true
-longhorn_hostname      = "longhorn.homelab.local"
+longhorn_hostname      = "longhorn.drksci.local"
 longhorn_replica_count = 1
-minio_hostname         = "minio.homelab.local"
-minio_console_hostname = "minio-console.homelab.local"
+minio_hostname         = "minio.drksci.local"
+minio_console_hostname = "minio-console.drksci.local"
 minio_root_user        = "admin"
 minio_root_password    = "CHANGE_ME"
 minio_storage_size     = "100Gi"
 
 enable_observability = true
 enable_pulse         = true
-pulse_hostname       = "pulse.homelab.local"
+pulse_hostname       = "pulse.drksci.local"
 enable_polaris       = true
-polaris_hostname     = "polaris.homelab.local"
+polaris_hostname     = "polaris.drksci.local"
 
 enable_backup         = true
 enable_velero         = true
@@ -114,7 +114,7 @@ botkube_platform    = "discord"
 botkube_channel     = "homelab"
 
 # /etc/hosts — add on your MacBook after first deploy (use traefik_lb_ip value)
-# 192.168.1.100  home.homelab.local argocd.homelab.local kite.homelab.local
-# 192.168.1.100  dockge.homelab.local pulse.homelab.local polaris.homelab.local
-# 192.168.1.100  minio.homelab.local minio-console.homelab.local longhorn.homelab.local
-# 192.168.1.100  registry.homelab.local
+# 192.168.1.100  home.drksci.local argocd.drksci.local kite.drksci.local
+# 192.168.1.100  dockge.drksci.local pulse.drksci.local polaris.drksci.local
+# 192.168.1.100  minio.drksci.local minio-console.drksci.local longhorn.drksci.local
+# 192.168.1.100  registry.drksci.local

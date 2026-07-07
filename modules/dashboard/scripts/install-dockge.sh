@@ -6,7 +6,7 @@
 set -euo pipefail
 
 : "${KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
-: "${DOCKGE_HOST:=dockge.homelab.local}"
+: "${DOCKGE_HOST:=dockge.drksci.local}"
 : "${STACKS_DIR:=/opt/stacks}"
 : "${SABLIER:=true}"
 : "${SESSION_DURATION:=30m}"

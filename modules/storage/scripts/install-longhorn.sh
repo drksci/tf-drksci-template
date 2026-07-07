@@ -6,7 +6,7 @@
 set -euo pipefail
 
 : "${KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
-: "${LONGHORN_HOST:=longhorn.homelab.local}"
+: "${LONGHORN_HOST:=longhorn.drksci.local}"
 : "${REPLICA_COUNT:=1}"
 : "${DATA_PATH:=/var/lib/longhorn}"
 

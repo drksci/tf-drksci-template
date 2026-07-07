@@ -35,9 +35,9 @@ variable "registry_storage_size" {
 }
 
 variable "registry_hostname" {
-  description = "Hostname for the registry ingress (e.g. registry.homelab.local)"
+  description = "Hostname for the registry ingress (e.g. registry.drksci.local)"
   type        = string
-  default     = "registry.homelab.local"
+  default     = "registry.drksci.local"
 }
 
 variable "retention_enabled" {

@@ -6,21 +6,21 @@
 set -euo pipefail
 
 : "${KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
-: "${HOMEPAGE_HOSTNAME:=home.homelab.local}"
+: "${HOMEPAGE_HOSTNAME:=home.drksci.local}"
 : "${CLUSTER_NAME:=homelab}"
 
 # Service hostnames (used for widget API calls and tile hrefs)
-: "${MINIO_HOSTNAME:=s3.homelab.local}"
-: "${MINIO_CONSOLE_HOSTNAME:=minio.homelab.local}"
+: "${MINIO_HOSTNAME:=s3.drksci.local}"
+: "${MINIO_CONSOLE_HOSTNAME:=minio.drksci.local}"
 : "${MINIO_ACCESS_KEY:=admin}"
 : "${MINIO_SECRET_KEY:=}"
-: "${LONGHORN_HOSTNAME:=longhorn.homelab.local}"
-: "${KITE_HOSTNAME:=kite.homelab.local}"
-: "${DOCKGE_HOSTNAME:=dockge.homelab.local}"
-: "${PULSE_HOSTNAME:=pulse.homelab.local}"
-: "${POLARIS_HOSTNAME:=polaris.homelab.local}"
-: "${REGISTRY_HOSTNAME:=registry.homelab.local}"
-: "${ARGOCD_HOSTNAME:=argocd.homelab.local}"
+: "${LONGHORN_HOSTNAME:=longhorn.drksci.local}"
+: "${KITE_HOSTNAME:=kite.drksci.local}"
+: "${DOCKGE_HOSTNAME:=dockge.drksci.local}"
+: "${PULSE_HOSTNAME:=pulse.drksci.local}"
+: "${POLARIS_HOSTNAME:=polaris.drksci.local}"
+: "${REGISTRY_HOSTNAME:=registry.drksci.local}"
+: "${ARGOCD_HOSTNAME:=argocd.drksci.local}"
 : "${TRAEFIK_NAMESPACE:=traefik}"
 
 CONFIG_DIR="${HOME}/.config/homepage"

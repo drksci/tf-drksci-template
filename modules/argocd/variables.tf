@@ -25,7 +25,7 @@ variable "kubeconfig_path" { type = string }
 
 variable "argocd_hostname" {
   type    = string
-  default = "argocd.homelab.local"
+  default = "argocd.drksci.local"
 }
 
 variable "argocd_version" {

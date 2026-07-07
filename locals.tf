@@ -46,7 +46,7 @@ locals {
   active_services = { for slug, svc in local._all_services : slug => svc if svc.enabled }
 
   # Public: Cloudflare Tunnel + DNS. Public hostname = <subdomain>.<cloudflare_domain>
-  # e.g. argocd.homelab.local + blake.id.au → argocd.blake.id.au
+  # e.g. argocd.drksci.local + blake.id.au → argocd.blake.id.au
   public_services = {
     for slug, svc in local.active_services : slug => merge(svc, {
       public_hostname = "${split(".", svc.hostname)[0]}.${var.cloudflare_domain}"

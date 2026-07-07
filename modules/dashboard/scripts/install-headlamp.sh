@@ -6,7 +6,7 @@
 set -euo pipefail
 
 : "${KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
-: "${HEADLAMP_HOST:=headlamp.homelab.local}"
+: "${HEADLAMP_HOST:=headlamp.drksci.local}"
 : "${SABLIER:=true}"
 : "${SESSION_DURATION:=30m}"
 

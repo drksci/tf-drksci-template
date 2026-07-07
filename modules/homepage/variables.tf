@@ -25,7 +25,7 @@ variable "kubeconfig_path" { type = string }
 
 variable "homepage_hostname" {
   type    = string
-  default = "home.homelab.local"
+  default = "home.drksci.local"
 }
 variable "cluster_name" {
   type    = string

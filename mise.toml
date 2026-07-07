@@ -220,7 +220,7 @@ kubectl --kubeconfig \"$KUBECONFIG\" get secret argocd-initial-admin-secret \
 description = "Log the argocd CLI into the cluster"
 run = """
 HOST=$(cd \"$TF_DIR\" && tofu output -raw argocd_url 2>/dev/null | sed 's|http://||')
-HOST=\"${HOST:-argocd.homelab.local}\"
+HOST=\"${HOST:-argocd.drksci.local}\"
 PASS=$(kubectl --kubeconfig \"$KUBECONFIG\" get secret argocd-initial-admin-secret \
   -n argocd -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)
 argocd login \"${HOST}\" --username admin --password \"${PASS}\" --insecure
@@ -255,7 +255,7 @@ brew install luxury-yacht && open -a \"Luxury Yacht\"
 [tasks.registry-login]
 description = "docker login to the homelab registry"
 run = """
-REG=$(cd \"$TF_DIR\" && tofu output -raw registry_url 2>/dev/null || echo "registry.homelab.local")
+REG=$(cd \"$TF_DIR\" && tofu output -raw registry_url 2>/dev/null || echo "registry.drksci.local")
 echo "Logging into ${REG}"
 docker login "${REG}"
 """

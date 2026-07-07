@@ -6,7 +6,7 @@
 set -euo pipefail
 
 : "${KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
-: "${POLARIS_HOSTNAME:=polaris.homelab.local}"
+: "${POLARIS_HOSTNAME:=polaris.drksci.local}"
 : "${SABLIER_ENABLED:=false}"
 : "${SABLIER_SESSION_DURATION:=30m}"
 

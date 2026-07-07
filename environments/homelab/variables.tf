@@ -102,7 +102,7 @@ variable "enable_registry" {
 
 variable "registry_hostname" {
   type    = string
-  default = "registry.homelab.local"
+  default = "registry.drksci.local"
 }
 
 variable "registry_storage_size" {
@@ -132,12 +132,12 @@ variable "enable_kite" {
 
 variable "dockge_hostname" {
   type    = string
-  default = "dockge.homelab.local"
+  default = "dockge.drksci.local"
 }
 
 variable "kite_hostname" {
   type    = string
-  default = "kite.homelab.local"
+  default = "kite.drksci.local"
 }
 
 variable "dockge_stacks_dir" {
@@ -157,7 +157,7 @@ variable "enable_argocd" {
 
 variable "argocd_hostname" {
   type    = string
-  default = "argocd.homelab.local"
+  default = "argocd.drksci.local"
 }
 
 variable "enable_homepage" {
@@ -167,7 +167,7 @@ variable "enable_homepage" {
 
 variable "homepage_hostname" {
   type    = string
-  default = "home.homelab.local"
+  default = "home.drksci.local"
 }
 
 variable "enable_storage" {
@@ -187,12 +187,12 @@ variable "enable_minio" {
 
 variable "minio_hostname" {
   type    = string
-  default = "minio.homelab.local"
+  default = "minio.drksci.local"
 }
 
 variable "minio_console_hostname" {
   type    = string
-  default = "minio-console.homelab.local"
+  default = "minio-console.drksci.local"
 }
 
 variable "minio_root_user" {
@@ -212,7 +212,7 @@ variable "minio_storage_size" {
 
 variable "longhorn_hostname" {
   type    = string
-  default = "longhorn.homelab.local"
+  default = "longhorn.drksci.local"
 }
 
 variable "longhorn_replica_count" {
@@ -232,7 +232,7 @@ variable "enable_pulse" {
 
 variable "pulse_hostname" {
   type    = string
-  default = "pulse.homelab.local"
+  default = "pulse.drksci.local"
 }
 
 variable "enable_polaris" {
@@ -242,7 +242,7 @@ variable "enable_polaris" {
 
 variable "polaris_hostname" {
   type    = string
-  default = "polaris.homelab.local"
+  default = "polaris.drksci.local"
 }
 
 variable "enable_backup" {

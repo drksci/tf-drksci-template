@@ -40,12 +40,12 @@ variable "enable_kite" {
 
 variable "dockge_hostname" {
   type    = string
-  default = "dockge.homelab.local"
+  default = "dockge.drksci.local"
 }
 
 variable "kite_hostname" {
   type    = string
-  default = "kite.homelab.local"
+  default = "kite.drksci.local"
 }
 
 variable "dockge_stacks_dir" {

@@ -7,7 +7,7 @@ set -euo pipefail
 
 : "${KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
 : "${STORAGE_SIZE:=50Gi}"
-: "${REGISTRY_HOST:=registry.homelab.local}"
+: "${REGISTRY_HOST:=registry.drksci.local}"
 : "${RETENTION_DAYS:=30}"
 export KUBECONFIG
 

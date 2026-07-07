@@ -6,7 +6,7 @@
 set -euo pipefail
 
 : "${KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
-: "${ARGOCD_HOSTNAME:=argocd.homelab.local}"
+: "${ARGOCD_HOSTNAME:=argocd.drksci.local}"
 : "${SABLIER_ENABLED:=false}"
 : "${SABLIER_SESSION_DURATION:=30m}"
 : "${ARGOCD_VERSION:=}"   # empty = latest

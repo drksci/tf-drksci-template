@@ -30,7 +30,7 @@ variable "enable_pulse" {
 
 variable "pulse_hostname" {
   type    = string
-  default = "pulse.homelab.local"
+  default = "pulse.drksci.local"
 }
 
 variable "enable_polaris" {
@@ -40,7 +40,7 @@ variable "enable_polaris" {
 
 variable "polaris_hostname" {
   type    = string
-  default = "polaris.homelab.local"
+  default = "polaris.drksci.local"
 }
 
 variable "sablier_enabled" {
