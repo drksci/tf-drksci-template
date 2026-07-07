@@ -1,0 +1,120 @@
+# ---------------------------------------------------------------------------
+# homelab — example configuration
+# Copy to terraform.tfvars and fill in your values.
+#
+# Topology:
+#   MacBook Air  →  iMac-1 (primary, macOS + Colima VM)
+#                →  iMac-2 (optional worker)
+#                →  Intel box (optional worker, Linux, supports gVisor)
+#
+# Before first deploy:
+#   1. Enable SSH: System Settings → Sharing → Remote Login (on each Mac)
+#   2. Copy SSH key: ssh-copy-id -i ~/.ssh/homelab_rsa.pub blake@imac-1.local
+#   3. mise run init && mise run deploy
+# ---------------------------------------------------------------------------
+
+primary_host     = "imac-1.local"
+primary_user     = "blake"
+primary_os       = "macos"
+primary_key_path = "~/.ssh/homelab_rsa"
+
+primary_cpu       = 4
+primary_memory_gb = 8
+primary_disk_gb   = 80
+
+runtime     = "colima"   # colima (macOS) | k3s (Linux)
+k8s_version = "v1.30.5"
+
+worker_nodes = {
+  # imac2 = {
+  #   host             = "imac-2.local"
+  #   user             = "blake"
+  #   private_key_path = "~/.ssh/homelab_rsa"
+  #   os               = "macos"
+  # }
+  # intel = {
+  #   host             = "192.168.1.20"
+  #   user             = "ubuntu"
+  #   private_key_path = "~/.ssh/homelab_rsa"
+  #   os               = "linux"
+  # }
+}
+
+enable_sablier           = true
+sablier_session_duration = "15m"
+traefik_lb_ip            = ""   # reserve a static LAN IP on your router
+
+enable_dagger           = true
+dagger_version          = ""
+enable_docuum           = true
+docuum_threshold        = "7 days"
+enable_registry         = true
+registry_hostname       = "registry.homelab.local"
+registry_storage_size   = "80Gi"
+registry_retention_days = 30
+enable_gvisor           = true
+enable_kata             = false
+
+enable_dashboard           = true
+enable_dockge              = true
+enable_kite                = true
+dockge_hostname            = "dockge.homelab.local"
+kite_hostname              = "kite.homelab.local"
+dockge_stacks_dir          = "/opt/stacks"
+dashboard_session_duration = "30m"
+
+enable_argocd   = true
+argocd_hostname = "argocd.homelab.local"
+argocd_exposure = "internal"   # internal | tailnet | public
+
+enable_homepage   = true
+homepage_hostname = "home.homelab.local"
+homepage_exposure = "internal"
+
+enable_storage         = true
+enable_longhorn        = true
+enable_minio           = true
+longhorn_hostname      = "longhorn.homelab.local"
+longhorn_replica_count = 1
+minio_hostname         = "minio.homelab.local"
+minio_console_hostname = "minio-console.homelab.local"
+minio_root_user        = "admin"
+minio_root_password    = "CHANGE_ME"
+minio_storage_size     = "100Gi"
+
+enable_observability = true
+enable_pulse         = true
+pulse_hostname       = "pulse.homelab.local"
+enable_polaris       = true
+polaris_hostname     = "polaris.homelab.local"
+
+enable_backup         = true
+enable_velero         = true
+backup_schedule       = "0 3 * * *"
+backup_retention_days = 7
+enable_gdrive_sync    = false
+gdrive_rclone_token   = ""   # run: mise run backup-auth
+gdrive_folder_id      = ""
+
+# Cloudflare Tunnel — leave empty to disable
+cloudflare_api_token  = ""
+cloudflare_account_id = ""
+cloudflare_zone_id    = ""
+cloudflare_domain     = ""
+
+tailscale_auth_key = ""
+
+enable_github_runner = false
+github_url           = ""
+github_token         = ""
+
+enable_botkube      = false
+botkube_webhook_url = ""
+botkube_platform    = "discord"
+botkube_channel     = "homelab"
+
+# /etc/hosts — add on your MacBook after first deploy (use traefik_lb_ip value)
+# 192.168.1.100  home.homelab.local argocd.homelab.local kite.homelab.local
+# 192.168.1.100  dockge.homelab.local pulse.homelab.local polaris.homelab.local
+# 192.168.1.100  minio.homelab.local minio-console.homelab.local longhorn.homelab.local
+# 192.168.1.100  registry.homelab.local

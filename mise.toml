@@ -1,0 +1,390 @@
+[tools]
+opentofu = "latest"
+kubectl  = "latest"
+helm     = "latest"
+fzf      = "latest"
+go       = "latest"
+python   = "3.12"
+uv       = "latest"
+# Dagger CLI — installed via aqua (mise's aqua backend covers daggerio/dagger)
+"aqua:daggerio/dagger" = "latest"
+# KubeShark — eBPF network tap for k8s (run `mise run kubeshark` to launch a session)
+"aqua:kubeshark/kubeshark" = "latest"
+
+[settings]
+# Always upgrade to latest on `mise install` (disable for pinned projects)
+always_keep_install = false
+
+[env]
+# Resolve environment config relative to this file
+HOMELAB_ROOT  = "{{config_root}}"
+TF_DIR        = "{{config_root}}/environments/homelab"
+SCRIPTS_DIR   = "{{config_root}}/scripts"
+KUBECONFIG    = "{{config_root}}/.kube/homelab.yaml"
+# Dagger runner — set after `deploy` so CI clients can source this
+_EXPERIMENTAL_DAGGER_RUNNER_HOST = "docker-container://dagger-engine"
+
+# ---------------------------------------------------------------------------
+# Lifecycle / meta
+# ---------------------------------------------------------------------------
+
+[tasks.install]
+description = "Install / update all mise-managed tools to latest"
+run = "mise upgrade --yes && mise install"
+
+[tasks.update]
+description = "Alias for install — keeps tools at latest"
+run = "mise run install"
+
+# ---------------------------------------------------------------------------
+# Infrastructure
+# ---------------------------------------------------------------------------
+
+[tasks.init]
+description = "Initialise OpenTofu (run once after clone)"
+dir = "{{config_root}}/environments/homelab"
+run = "tofu init -upgrade"
+
+[tasks.validate]
+description = "Static checks: tofu fmt + validate + shellcheck (no SSH needed)"
+run = """
+cd \"$TF_DIR\"
+echo "--- fmt ---"
+tofu fmt -check -recursive ../../ || { echo "Run: tofu fmt -recursive ../../"; exit 1; }
+echo "--- validate ---"
+tofu init -backend=false -upgrade=false -input=false 2>/dev/null
+TF_VAR_primary_host=127.0.0.1 \
+TF_VAR_primary_user=test \
+TF_VAR_minio_root_password=stub \
+TF_VAR_cloudflare_api_token= \
+TF_VAR_tailscale_auth_key= \
+TF_VAR_gdrive_rclone_token= \
+TF_VAR_github_token= \
+tofu validate
+echo "--- shellcheck ---"
+find \"$HOMELAB_ROOT\" -name '*.sh' -not -path '*/.git/*' \
+  | xargs shellcheck --severity=warning --shell=bash
+echo "All static checks passed."
+"""
+
+[tasks.test-scripts-smoke]
+description = "Fast script syntax checks (no Docker needed)"
+dir = "{{config_root}}/tests/scripts"
+run = """
+command -v uv &>/dev/null || pip install uv -q
+uv run pytest -m smoke -v
+"""
+
+[tasks.test-scripts]
+description = "Script tests via testcontainers (requires Docker)"
+dir = "{{config_root}}/tests/scripts"
+run = """
+command -v uv &>/dev/null || pip install uv -q
+uv run pytest -m slow -v --timeout=300
+"""
+
+[tasks.test-terraform]
+description = "Terratest unit tests — validate + plan checks (no hardware)"
+dir = "{{config_root}}/tests/terraform"
+run = """
+command -v go &>/dev/null || mise use go --yes
+go mod tidy
+go test -v -run 'TestValidate|TestPlan' -timeout 10m ./...
+"""
+
+[tasks.test-all]
+description = "Run all local tests: static checks + script smoke + terratest plan"
+run = """
+mise run validate
+mise run test-scripts-smoke
+mise run test-terraform
+"""
+
+[tasks.test]
+description = "Trigger the full integration test on GitHub Actions (requires gh CLI)"
+run = """
+BRANCH=$(git -C \"$HOMELAB_ROOT\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [ -z \"$BRANCH\" ]; then
+  echo "Not in a git repo — push to GitHub first, then run: mise run test"
+  exit 1
+fi
+echo "Triggering integration workflow on branch: $BRANCH"
+gh workflow run validate.yml \
+  --repo \"$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)\" \
+  --ref \"$BRANCH\"
+echo "Watch at: gh run list --workflow=validate.yml"
+"""
+
+[tasks.plan]
+description = "Preview changes without applying"
+dir = "{{config_root}}/environments/homelab"
+run = "tofu plan"
+
+[tasks.deploy]
+description = "Apply the full homelab stack (bootstrap → runtime → dagger → docuum → sablier → registry)"
+run = "bash {{config_root}}/scripts/deploy.sh"
+
+[tasks.destroy]
+description = "Tear down the homelab stack (prompts for confirmation)"
+run = "bash {{config_root}}/scripts/destroy.sh"
+
+[tasks.output]
+description = "Print all Terraform outputs"
+dir = "{{config_root}}/environments/homelab"
+run = "tofu output"
+
+# ---------------------------------------------------------------------------
+# Cluster access
+# ---------------------------------------------------------------------------
+
+[tasks.kubeconfig]
+description = "Fetch kubeconfig from primary node → .kube/homelab.yaml"
+run = "bash {{config_root}}/scripts/kubeconfig-fetch.sh"
+
+[tasks.kubectl]
+description = "kubectl wrapper using the homelab kubeconfig"
+dir = "{{config_root}}"
+run = "kubectl $@"
+
+[tasks.k9s]
+description = "Launch k9s against the homelab cluster (installs if absent)"
+run = """
+command -v k9s &>/dev/null || mise use k9s --yes
+k9s --kubeconfig \"$KUBECONFIG\"
+"""
+
+# ---------------------------------------------------------------------------
+# Node access
+# ---------------------------------------------------------------------------
+
+[tasks.login]
+description = "Interactive SSH session — pick a node then takes over the terminal"
+run = "bash {{config_root}}/scripts/login.sh"
+
+[tasks.login.env]
+ROLE = ""   # Override: ROLE=worker mise run login
+
+# ---------------------------------------------------------------------------
+# User management
+# ---------------------------------------------------------------------------
+
+[tasks.user-create]
+description = "Create a system user on a cluster node (interactive)"
+run = "bash {{config_root}}/scripts/user-create.sh"
+
+[tasks.user-list]
+description = "List non-system users on a cluster node"
+run = "bash {{config_root}}/scripts/user-list.sh"
+
+# ---------------------------------------------------------------------------
+# Dagger
+# ---------------------------------------------------------------------------
+
+[tasks.dagger-connect]
+description = "Open SSH tunnel so local dagger CLI talks to the remote engine"
+run = "bash {{config_root}}/scripts/dagger-connect.sh"
+
+[tasks.dagger-status]
+description = "Check Dagger engine container status on primary node"
+run = "bash {{config_root}}/scripts/dagger-status.sh"
+
+# ---------------------------------------------------------------------------
+# Dashboards
+# ---------------------------------------------------------------------------
+
+[tasks.dashboard-open]
+description = "Print all service URLs (dashboards, storage, observability, registry)"
+run = """
+source \"$SCRIPTS_DIR/lib/common.sh\"
+header \"Homelab Services\"
+print_url() { [[ -n \"$2\" ]] && info \"$(printf '%-26s' \"$1\") $2\"; }
+print_url \"Homepage (portal):\"       \"$(tofu_output homepage_url 2>/dev/null)\"
+print_url \"Kite (k8s dashboard):\"   \"$(tofu_output kite_url 2>/dev/null)\"
+print_url \"Dockge (Compose mgr):\"   \"$(tofu_output dockge_url 2>/dev/null)\"
+print_url \"Pulse (monitoring):\"     \"$(tofu_output pulse_url 2>/dev/null)\"
+print_url \"Polaris (best-practices):\" \"$(tofu_output polaris_url 2>/dev/null)\"
+print_url \"MinIO console (S3 UI):\"  \"$(tofu_output minio_console_url 2>/dev/null)\"
+print_url \"MinIO S3 endpoint:\"      \"$(tofu_output minio_s3_url 2>/dev/null)\"
+print_url \"Longhorn (volumes):\"     \"$(tofu_output longhorn_url 2>/dev/null)\"
+print_url \"Registry:\"              \"$(tofu_output registry_url 2>/dev/null)\"
+"""
+
+[tasks.argocd-password]
+description = "Print the ArgoCD initial admin password"
+run = """
+kubectl --kubeconfig \"$KUBECONFIG\" get secret argocd-initial-admin-secret \
+  -n argocd -o jsonpath='{.data.password}' | base64 -d && echo
+"""
+
+[tasks.argocd-login]
+description = "Log the argocd CLI into the cluster"
+run = """
+HOST=$(cd \"$TF_DIR\" && tofu output -raw argocd_url 2>/dev/null | sed 's|http://||')
+HOST=\"${HOST:-argocd.homelab.local}\"
+PASS=$(kubectl --kubeconfig \"$KUBECONFIG\" get secret argocd-initial-admin-secret \
+  -n argocd -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)
+argocd login \"${HOST}\" --username admin --password \"${PASS}\" --insecure
+"""
+
+[tasks.argocd-sync]
+description = "Force-sync all ArgoCD apps now"
+run = "argocd app sync --all"
+
+[tasks.kubeshark]
+description = "Launch a KubeShark eBPF network tap on the cluster (interactive, ctrl+c to stop)"
+run = """
+echo \"Tapping all namespaces — visit http://localhost:8899 while running\"
+kubeshark tap --set tap.proxy.front.port=8899 --kubeconfig \"$KUBECONFIG\" -A
+"""
+
+[tasks.kubeshark-pod]
+description = "Tap traffic for a specific pod: mise run kubeshark-pod -- -n <ns> <pod-pattern>"
+run = "kubeshark tap --kubeconfig \"$KUBECONFIG\" $@"
+
+[tasks.luxury-yacht]
+description = "Install Luxury Yacht desktop k8s manager on this Mac (no server needed)"
+run = """
+command -v luxury-yacht &>/dev/null && open -a \"Luxury Yacht\" 2>/dev/null && exit 0
+brew install luxury-yacht && open -a \"Luxury Yacht\"
+"""
+
+# ---------------------------------------------------------------------------
+# Registry
+# ---------------------------------------------------------------------------
+
+[tasks.registry-login]
+description = "docker login to the homelab registry"
+run = """
+REG=$(cd \"$TF_DIR\" && tofu output -raw registry_url 2>/dev/null || echo "registry.homelab.local")
+echo "Logging into ${REG}"
+docker login "${REG}"
+"""
+
+# ---------------------------------------------------------------------------
+# Convenience
+# ---------------------------------------------------------------------------
+
+[tasks.status]
+description = "Show cluster nodes and running workloads"
+run = """
+echo "=== Nodes ==="
+kubectl get nodes -o wide
+echo ""
+echo "=== Workloads ==="
+kubectl get pods -A --field-selector=status.phase!=Succeeded
+"""
+
+[tasks.colima-ip]
+description = "Get the Colima VM LAN IP on the primary iMac (needs SSH access to iMac-1)"
+run = """
+source \"$SCRIPTS_DIR/lib/common.sh\"
+HOST=$(tofu_output primary_host)
+USER=$(grep primary_user \"$TF_DIR/terraform.tfvars\" 2>/dev/null | awk -F'\"' '{print $2}' | head -1)
+USER=\"${USER:-blake}\"
+KEY=$(grep primary_key_path \"$TF_DIR/terraform.tfvars\" 2>/dev/null | awk -F'\"' '{print $2}' | head -1)
+KEY=\"${KEY:-~/.ssh/id_rsa}\"
+ssh -o StrictHostKeyChecking=accept-new -i \"${KEY/#\\~/$HOME}\" \"${USER}@${HOST}\" 'colima list 2>/dev/null || echo "Colima not started yet"'
+"""
+
+# ---------------------------------------------------------------------------
+# Backup
+# ---------------------------------------------------------------------------
+
+[tasks.backup-auth]
+description = "Authenticate rclone with Google Drive (one-time browser OAuth — run on your Mac)"
+run = """
+command -v rclone &>/dev/null || brew install rclone
+echo "Opening browser for Google Drive auth..."
+echo "After signing in, paste the printed token into terraform.tfvars as gdrive_rclone_token"
+echo ""
+rclone authorize "drive"
+"""
+
+[tasks.backup-status]
+description = "Show Velero backup status and schedule"
+run = """
+echo "=== Backups ==="
+kubectl --kubeconfig \"$KUBECONFIG\" get backups -n velero
+echo ""
+echo "=== Schedule ==="
+kubectl --kubeconfig \"$KUBECONFIG\" get schedules -n velero
+echo ""
+echo "=== rclone sync jobs ==="
+kubectl --kubeconfig \"$KUBECONFIG\" get cronjobs,jobs -n backup 2>/dev/null || true
+"""
+
+[tasks.backup-now]
+description = "Trigger an immediate Velero backup of all namespaces"
+run = """
+NAME="manual-$(date +%Y%m%d-%H%M%S)"
+kubectl --kubeconfig \"$KUBECONFIG\" -n velero \
+  exec deploy/velero -- velero backup create \"${NAME}\" --include-namespaces '*' --wait
+echo "Backup ${NAME} complete"
+"""
+
+[tasks.backup-sync-now]
+description = "Trigger an immediate rclone sync to Google Drive"
+run = """
+kubectl --kubeconfig \"$KUBECONFIG\" create job \
+  --from=cronjob/rclone-gdrive-sync \
+  "gdrive-sync-$(date +%Y%m%d-%H%M%S)" \
+  -n backup
+kubectl --kubeconfig \"$KUBECONFIG\" -n backup get jobs
+"""
+
+[tasks.retention-check]
+description = "Run retention detector now — lists expired/expiring PVCs"
+run = """
+kubectl --kubeconfig \"$KUBECONFIG\" create job \
+  --from=cronjob/retention-detector \
+  "retention-check-$(date +%Y%m%d-%H%M%S)" \
+  -n default
+kubectl --kubeconfig \"$KUBECONFIG\" wait --for=condition=complete \
+  job -l job-name=retention-check -n default --timeout=60s 2>/dev/null || true
+kubectl --kubeconfig \"$KUBECONFIG\" logs -n default \
+  -l job-name=retention-check --tail=50
+"""
+
+[tasks.backup-restore]
+description = "Restore from a Velero backup (interactive)"
+run = """
+echo "Available backups:"
+kubectl --kubeconfig \"$KUBECONFIG\" get backups -n velero --no-headers | awk '{print NR\") \"$1\" (\"$2\")\"}'
+echo ""
+read -rp "Backup name to restore: " BACKUP_NAME
+read -rp "Namespace to restore (empty = all): " NS
+NS_FLAG=\"${NS:+--include-namespaces $NS}\"
+kubectl --kubeconfig \"$KUBECONFIG\" -n velero \
+  exec deploy/velero -- velero restore create \
+  --from-backup \"${BACKUP_NAME}\" ${NS_FLAG} --wait
+"""
+
+# ---------------------------------------------------------------------------
+# GitHub runner
+# ---------------------------------------------------------------------------
+
+[tasks.runner-status]
+description = "Show GitHub Actions self-hosted runner pod status"
+run = "kubectl --kubeconfig \"$KUBECONFIG\" get runners,runnerdeployments -n arc-system"
+
+# ---------------------------------------------------------------------------
+# Exposure
+# ---------------------------------------------------------------------------
+
+[tasks.expose-status]
+description = "Show public IngressRoutes and Tailscale Ingresses"
+run = """
+echo "=== Public IngressRoutes (Cloudflare) ==="
+kubectl --kubeconfig \"$KUBECONFIG\" get ingressroutes -A -l exposure=public 2>/dev/null || \
+  kubectl --kubeconfig \"$KUBECONFIG\" get ingressroutes -A | grep public
+echo ""
+echo "=== Tailscale Ingresses ==="
+kubectl --kubeconfig \"$KUBECONFIG\" get ingress -A -l ingressClassName=tailscale 2>/dev/null || true
+echo ""
+echo "=== cloudflared pods ==="
+kubectl --kubeconfig \"$KUBECONFIG\" get pods -n cloudflare 2>/dev/null || true
+"""
+
+[tasks.help]
+description = "List all available tasks"
+run = "mise tasks"

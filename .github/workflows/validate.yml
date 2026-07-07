@@ -1,0 +1,253 @@
+name: validate
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "**.tf"
+      - "**.sh"
+      - "mise.toml"
+      - "tests/**"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    paths:
+      - "**.tf"
+      - "**.sh"
+      - "mise.toml"
+      - "tests/**"
+      - ".github/workflows/validate.yml"
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Detect which parts of the repo changed — gates downstream jobs
+  # -----------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      tf:      ${{ steps.filter.outputs.tf }}
+      scripts: ${{ steps.filter.outputs.scripts }}
+      tests_tf: ${{ steps.filter.outputs.tests_tf }}
+      tests_scripts: ${{ steps.filter.outputs.tests_scripts }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            tf:
+              - "**.tf"
+              - "versions.tf"
+              - "mise.toml"
+            scripts:
+              - "modules/**/scripts/**.sh"
+              - "scripts/**.sh"
+              - "mise.toml"
+            tests_tf:
+              - "**.tf"
+              - "tests/terraform/**"
+            tests_scripts:
+              - "modules/**/scripts/**.sh"
+              - "scripts/**.sh"
+              - "tests/scripts/**"
+
+  # -----------------------------------------------------------------------
+  # Static checks — HCL fmt/validate + shellcheck
+  # Runs when any .tf or .sh file changes
+  # -----------------------------------------------------------------------
+  static:
+    needs: changes
+    if: needs.changes.outputs.tf == 'true' || needs.changes.outputs.scripts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: tofu fmt check
+        working-directory: environments/homelab
+        run: tofu fmt -check -recursive ../../
+
+      - name: tofu init
+        working-directory: environments/homelab
+        run: tofu init -backend=false
+        env:
+          TF_CLI_ARGS_init: "-upgrade=false"
+
+      - name: tofu validate
+        working-directory: environments/homelab
+        run: tofu validate
+        env:
+          TF_VAR_primary_host: "127.0.0.1"
+          TF_VAR_primary_user: "runner"
+          TF_VAR_minio_root_password: "stub"
+          TF_VAR_cloudflare_api_token: ""
+          TF_VAR_tailscale_auth_key: ""
+          TF_VAR_gdrive_rclone_token: ""
+          TF_VAR_github_token: ""
+
+      - name: shellcheck all scripts
+        run: |
+          find . -name "*.sh" -not -path "./.git/*" \
+            | xargs shellcheck --severity=warning --shell=bash
+
+  # -----------------------------------------------------------------------
+  # Terratest — plan-level checks, runs only when .tf files change
+  # -----------------------------------------------------------------------
+  terratest:
+    needs: changes
+    if: needs.changes.outputs.tests_tf == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: tests/terraform/go.sum
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+
+      - name: go mod tidy
+        working-directory: tests/terraform
+        run: go mod tidy
+
+      - name: tofu init
+        working-directory: environments/homelab
+        run: tofu init -backend=false
+        env:
+          TF_CLI_ARGS_init: "-upgrade=false"
+
+      - name: Terratest unit tests (validate + plan)
+        working-directory: tests/terraform
+        run: go test -v -run 'TestValidate|TestPlan' -timeout 10m ./...
+        env:
+          TF_VAR_primary_host: "127.0.0.1"
+          TF_VAR_primary_user: "runner"
+          TF_VAR_minio_root_password: "stub"
+          TF_VAR_cloudflare_api_token: ""
+          TF_VAR_tailscale_auth_key: ""
+          TF_VAR_gdrive_rclone_token: ""
+          TF_VAR_github_token: ""
+
+  # -----------------------------------------------------------------------
+  # pytest smoke — script syntax checks, runs only when scripts change
+  # -----------------------------------------------------------------------
+  pytest-smoke:
+    needs: changes
+    if: needs.changes.outputs.tests_scripts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv -q
+
+      - name: Install test dependencies
+        working-directory: tests/scripts
+        run: uv sync
+
+      - name: pytest smoke tests
+        working-directory: tests/scripts
+        run: uv run pytest -m smoke -v
+
+  # -----------------------------------------------------------------------
+  # Integration — full k3s deploy on the runner (manual or test/* branch)
+  # -----------------------------------------------------------------------
+  integration:
+    needs: [static, terratest, pytest-smoke]
+    if: |
+      always() &&
+      !failure() && !cancelled() &&
+      (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/test/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+
+      - name: Set up SSH to localhost
+        run: |
+          ssh-keygen -t ed25519 -f ~/.ssh/test_key -N ""
+          cat ~/.ssh/test_key.pub >> ~/.ssh/authorized_keys
+          chmod 600 ~/.ssh/authorized_keys
+          ssh -i ~/.ssh/test_key -o StrictHostKeyChecking=no 127.0.0.1 echo "SSH OK"
+
+      - name: Write test tfvars
+        working-directory: environments/homelab
+        run: |
+          cat > terraform.tfvars <<EOF
+          primary_node = {
+            host             = "127.0.0.1"
+            user             = "runner"
+            port             = 22
+            private_key_path = "~/.ssh/test_key"
+            os               = "linux"
+          }
+          runtime     = "k3s"
+          k8s_version = "v1.30.5"
+
+          enable_dagger        = false
+          enable_docuum        = false
+          enable_storage       = false
+          enable_backup        = false
+          enable_argocd        = true
+          enable_homepage      = false
+          enable_observability = false
+          enable_botkube       = false
+          enable_github_runner = false
+          enable_registry      = true
+          enable_gvisor        = false
+          enable_kata          = false
+          enable_sablier       = true
+          traefik_lb_ip        = ""
+          enable_dashboard     = true
+          enable_dockge        = true
+          enable_kite          = true
+
+          minio_root_password  = "test-only"
+          cloudflare_api_token = ""
+          tailscale_auth_key   = ""
+          gdrive_rclone_token  = ""
+          github_token         = ""
+          EOF
+
+      - name: tofu init + apply
+        working-directory: environments/homelab
+        run: |
+          tofu init -backend=false
+          tofu apply -auto-approve
+
+      - name: Smoke tests
+        run: |
+          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+          kubectl get nodes -o wide
+          kubectl wait --for=condition=Ready pod \
+            -l app.kubernetes.io/name=traefik \
+            -n kube-system --timeout=120s
+          kubectl get pods -A
+          echo "PASS"
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+          kubectl get pods -A
+          kubectl get events -A --sort-by='.lastTimestamp' | tail -40
