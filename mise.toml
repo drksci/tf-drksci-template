@@ -455,6 +455,14 @@ sops --decrypt terraform.tfvars.enc > terraform.tfvars
 echo "Decrypted → terraform.tfvars"
 """
 
+[tasks.test-e2e]
+description = "E2E tests against live cluster (requires KUBECONFIG)"
+dir = "{{config_root}}/tests/e2e"
+run = """
+command -v uv &>/dev/null || pip install uv -q
+uv run pytest -m e2e -v --timeout=300
+"""
+
 [tasks.help]
 description = "List all available tasks"
 run = "mise tasks"

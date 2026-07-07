@@ -1,0 +1,20 @@
+[project]
+name = "homelab-e2e-tests"
+version = "0.1.0"
+dependencies = [
+  "pytest>=8.0",
+  "pytest-xdist>=3.5",
+  "pytest-timeout>=2.3",
+  "kubernetes>=29.0",
+  "boto3>=1.34",
+  "requests>=2.31",
+  "tenacity>=8.2",
+]
+
+[tool.pytest.ini_options]
+markers = [
+  "smoke: fast checks, no live cluster needed",
+  "e2e: requires live cluster (KUBECONFIG must be set)",
+  "slow: longer-running e2e (PVC provision, registry push, DNS pod)",
+]
+timeout = 300
