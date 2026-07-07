@@ -6,6 +6,8 @@ fzf      = "latest"
 go       = "latest"
 python   = "3.12"
 uv       = "latest"
+age      = "latest"
+sops     = "latest"
 # Dagger CLI — installed via aqua (mise's aqua backend covers daggerio/dagger)
 "aqua:daggerio/dagger" = "latest"
 # KubeShark — eBPF network tap for k8s (run `mise run kubeshark` to launch a session)
@@ -383,6 +385,38 @@ kubectl --kubeconfig \"$KUBECONFIG\" get ingress -A -l ingressClassName=tailscal
 echo ""
 echo "=== cloudflared pods ==="
 kubectl --kubeconfig \"$KUBECONFIG\" get pods -n cloudflare 2>/dev/null || true
+"""
+
+# ---------------------------------------------------------------------------
+# Secrets (SOPS + age)
+# ---------------------------------------------------------------------------
+
+[tasks.secrets-init]
+description = "Generate age keypair and wire public key into .sops.yaml (run once)"
+run = "bash {{config_root}}/scripts/secrets-init.sh"
+
+[tasks.secrets-encrypt]
+description = "Encrypt terraform.tfvars → terraform.tfvars.enc (commit the .enc file)"
+dir = "{{config_root}}/environments/homelab"
+run = """
+if [[ ! -f terraform.tfvars ]]; then
+  echo "No terraform.tfvars found — copy from terraform.tfvars.example first"
+  exit 1
+fi
+sops --encrypt terraform.tfvars > terraform.tfvars.enc
+echo "Encrypted → terraform.tfvars.enc (commit this file)"
+"""
+
+[tasks.secrets-decrypt]
+description = "Decrypt terraform.tfvars.enc → terraform.tfvars (run after clone)"
+dir = "{{config_root}}/environments/homelab"
+run = """
+if [[ ! -f terraform.tfvars.enc ]]; then
+  echo "No terraform.tfvars.enc found — run 'mise run secrets-encrypt' first"
+  exit 1
+fi
+sops --decrypt terraform.tfvars.enc > terraform.tfvars
+echo "Decrypted → terraform.tfvars"
 """
 
 [tasks.help]

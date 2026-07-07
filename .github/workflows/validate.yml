@@ -190,9 +190,24 @@ jobs:
           chmod 600 ~/.ssh/authorized_keys
           ssh -i ~/.ssh/test_key -o StrictHostKeyChecking=no 127.0.0.1 echo "SSH OK"
 
+      - name: Decrypt tfvars (if SOPS_AGE_KEY is set)
+        working-directory: environments/homelab
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          if [[ -n "${SOPS_AGE_KEY}" && -f terraform.tfvars.enc ]]; then
+            echo "Decrypting terraform.tfvars from SOPS..."
+            export SOPS_AGE_KEY_FILE=/dev/stdin
+            echo "${SOPS_AGE_KEY}" | sops --decrypt terraform.tfvars.enc > terraform.tfvars
+            echo "Decrypted OK"
+          else
+            echo "No SOPS_AGE_KEY or no .enc file — using generated test tfvars"
+          fi
+
       - name: Write test tfvars
         working-directory: environments/homelab
         run: |
+          [[ -f terraform.tfvars ]] && { echo "Using decrypted tfvars"; exit 0; }
           cat > terraform.tfvars <<EOF
           primary_node = {
             host             = "127.0.0.1"

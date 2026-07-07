@@ -27,6 +27,7 @@ K3S_EXEC_ARGS=(
   --write-kubeconfig-mode 0644
   --disable traefik
   --disable servicelb
+  --secrets-encryption
 )
 
 if [[ "${CRI}" == "crio" ]]; then

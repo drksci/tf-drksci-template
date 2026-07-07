@@ -59,6 +59,37 @@ spec:
           namespace: longhorn-system
 EOF
 
+# ---------------------------------------------------------------------------
+# Recurring jobs: daily snapshot (7-day retention) + weekly backup (4-week)
+# ---------------------------------------------------------------------------
+kubectl apply -f - <<EOF
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: daily-snapshot
+  namespace: longhorn-system
+spec:
+  cron: "0 2 * * *"
+  task: snapshot
+  groups: [default]
+  retain: 7
+  concurrency: 1
+  labels: {}
+---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: weekly-backup
+  namespace: longhorn-system
+spec:
+  cron: "0 3 * * 0"
+  task: backup
+  groups: [default]
+  retain: 4
+  concurrency: 1
+  labels: {}
+EOF
+
 TRAEFIK_IP=$(kubectl get svc -n traefik traefik \
   -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<traefik-ip>")
 
